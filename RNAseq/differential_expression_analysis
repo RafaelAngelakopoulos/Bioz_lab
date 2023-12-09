@@ -1,1 +1,106 @@
-R
+##################
+#if (!require("BiocManager", quietly = TRUE))
+#install.packages("BiocManager")
+
+#BiocManager::install("edgeR")
+#BiocManager::install("limma")
+#install.packages("locfit")
+#BiocManager::install("statmod")
+#install.packages("pheatmap")
+##################
+library("readxl")
+library(edgeR)
+library(data.table)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel) 
+library(plotly)
+library(gridExtra)
+library(grid)
+library(ggplot2)
+library(lattice)
+library(stringr)
+library(locfit)
+library(openxlsx)
+library(pheatmap)
+library(dplyr)
+##################
+setwd("My_PATH/")
+
+dataset<- read.csv("rnaseq_rawcounts.txt", header=T, sep="\t") #import READCOUNTS WITH GENES NAMES
+head(dataset)
+
+
+read_counts <- dataset[,(c(2:25))] #save your dataset without GENES NAMES
+
+row.names(read_counts) <- dataset$Gene #make the GENES NAMES as row names
+head(read_counts)
+
+
+group <- c(1,2) #pairwise comparison (group = 1:2 should give log-ratios of B-A (group2-group1))
+
+bcv <- 0.1 #Typical values for the commonBCV (square-root dispersion) for datasets arising from well-controlled experiments are 0.4 for human data, 0.1 for data on genetically identical model organisms or 0.01 for technical replicates.
+
+input<- read_counts[,c(1,2)] # use that for specific comparisons
+
+#is the DGEList
+d <- DGEList(counts=input,group=group)
+
+#keep is filtering data
+keep <- filterByExpr(d, group=group)
+
+#calculating normalisation factor
+d <- calcNormFactors(d)
+head(d)
+
+#Differentialy expressed Genes by exactTest
+dif <- exactTest(d, dispersion=bcv^2)
+#shows top Diff expressed genes
+a <- topTags(dif, n = "Inf") #save all differentially expressed genes in an object
+
+
+#converts DEG_list to data.frame
+df <- as.data.frame(a)
+#add column with -log10 of pvalue OR -log10 of FDR
+
+df$neglog10FDR = -log10(df$FDR)    # USING FDR PVALUE
+
+head(df)
+
+#Add a column with up and down regulation
+df$DEG = "NO"
+# if log2Foldchange > 0.6 and FDR < 0.05, set as "UP" 
+df$DEG[df$logFC > 0.6 & df$FDR < 0.05] <- "UP"
+df$DEG[df$logFC < -0.6 & df$FDR < 0.05] <- "DOWN"
+#convert row.name genes in to column
+setDT(df, keep.rownames = TRUE)
+colnames(df)[1] <- "Genes"
+
+
+head(df)
+#Adds a column with Gene names
+df$delabel <- NA
+df$delabel[df$DEG != "NO"] <- df$Genes[df$DEG != "NO"]
+
+head(df)
+
+
+#reordering by pvalue
+df_order <- df[order(-neglog10FDR),]       # CHANGE -neglog FDR or Pvalue
+
+
+#setting colors by expression
+mycolors <- c("blue", "orange", "black")
+names(mycolors) <- c("DOWN", "UP", "NO")
+
+#Volcano plot for DEG  !!!!!!!!
+t <- ggplot(data=df_order, aes(x=logFC, y=neglog10FDR, col=DEG)) + geom_point() + theme_bw() + 
+  geom_vline(xintercept=c(-0.6, 0.6), col="red") + 
+  geom_hline(yintercept=-log10(0.05), col="red") +
+  ggtitle("name") + 
+  theme(plot.title = element_text(size=22)) + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_colour_manual(values = mycolors)
+
+print(t+geom_text_repel(data=head(df_order, 10), aes(label=Genes, fontface="bold.italic"), 
+                        size = 4, show.legend = F))
