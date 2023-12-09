@@ -1,30 +1,5 @@
 ##################
-#if (!require("BiocManager", quietly = TRUE))
-#install.packages("BiocManager")
 
-#BiocManager::install("edgeR")
-#BiocManager::install("limma")
-#install.packages("locfit")
-#BiocManager::install("statmod")
-#install.packages("pheatmap")
-##################
-library("readxl")
-library(edgeR)
-library(data.table)
-library(ggplot2)
-library(ggpubr)
-library(ggrepel) 
-library(plotly)
-library(gridExtra)
-library(grid)
-library(ggplot2)
-library(lattice)
-library(stringr)
-library(locfit)
-library(openxlsx)
-library(pheatmap)
-library(dplyr)
-##################
 setwd("My_PATH/")
 
 dataset<- read.csv("rnaseq_rawcounts.txt", header=T, sep="\t") #import READCOUNTS WITH GENES NAMES
